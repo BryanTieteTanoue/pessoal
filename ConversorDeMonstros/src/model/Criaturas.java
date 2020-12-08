@@ -9,26 +9,36 @@ package model;
  *
  * @author Bryan
  */
-public abstract class Criaturas {
+public class Criaturas {
     
     //----------------------Declaração de atributos----------------------\\
-    protected int   con, modCon, forca, modForca, des, modDes, 
+    private int   con, modCon, forca, modForca, des, modDes, 
                     intel, modIntel, sab, modSab, car, modCar;
-    protected int   pm, pv, pericia , nivel;
-    protected String habilidade;
+    private int   pm, pv, tipo, nivel;
+    /*Tipos de criatura
+    1 - Animais
+    2 - Constructos
+    3 - Espíritos
+    4 - Humanoides
+    5 - Monstros
+    6 - Mortos-Vivos
+    */
 
     //----------------------Métodos Construtores----------------------\\
-    protected Criaturas(){}
+    public Criaturas(){}
     
-    protected Criaturas(int con, int forca, int des, int intel, int sab, int car, String habilidade) {
+    public Criaturas(int con, int forca, int des, int intel, int sab, int car, int tipo, String dados, int modificadorVida) {
         this.con = con;
         this.forca = forca;
         this.des = des;
         this.intel = intel;
         this.sab = sab;
         this.car = car;
-        this.habilidade = habilidade;
         this.definirModificadores();
+        this.tipo = tipo;
+        this.pv = calcularPV(dados, modificadorVida);
+        this.nivel = calculoNivel();
+        this.pm = getNivel();
         //para melhor leitura do código a definição de modificadores foi feita
         //a partir de um método
     }
@@ -154,23 +164,23 @@ public abstract class Criaturas {
         this.nivel = nivel;
     }
 
-    public String getHabilidade() {
-        return habilidade;
+    public int getTipo() {
+        return tipo;
     }
 
-    public void setHabilidade(String habilidade) {
-        this.habilidade = habilidade;
+    public void setTipo(int tipo) {
+        this.tipo = tipo;
     }
     
+    
     //----------------------Métodos criados----------------------\\
-    protected int calculoModificador (int valor){
+    private int calculoModificador (int valor){
         int mod;
         mod = (valor - 10) / 2;
-        System.out.println((valor - 10) / 2);
         return mod;
     }
     
-    protected void definirModificadores(){
+    private void definirModificadores(){
         this.setModCon(calculoModificador(con));
         this.setModForca(calculoModificador(forca));
         this.setModDes(calculoModificador(des));
@@ -179,17 +189,104 @@ public abstract class Criaturas {
         this.setModCar(calculoModificador(car));
     }
     
-    protected int calcBonusPericia(int modAtributo, boolean treinado, int bonusPericia){
+    private int calcularPV(String dados, int modificadorVida){
         /*
-        O bônus de percícia é determinado pelo nível da criatura, que por sua 
-        vez é determinado pelo tipo dela (Animais, constructos e etc.), assim
-        é impossível esta classe (Criaturas) saber o bônus e deve recebê-lo para
-        calcular
+        Este método irá receber a vida em "forma de dados", como "13d8 + 15".
+        Ele retira o "d" de "13d8" e depois multiplica os números (após transforma-los
+        em int)
         */
-        int pericia;
-        if (treinado)   pericia = modAtributo + (nivel / 2) + bonusPericia;
-        else            pericia = modAtributo + (nivel / 2);
-        return pericia;
+        String separado[] = dados.split("d");
+        int num1 = Integer.parseInt(separado[0]);
+        int num2 = Integer.parseInt(separado[1]);
+        int pvMaximo = num1 * num2 + modificadorVida;
+        int pvReal;
+        switch(this.getTipo()){
+            case 1: //Animais
+                pvReal = Math.round(((float)pvMaximo / 100) * 60);
+                break;
+            case 2: //Constructos
+                pvReal = Math.round(((float)pvMaximo / 100) * 70);
+                break;
+            case 3: //Espíritos
+                pvReal = Math.round(((float)pvMaximo / 100) * 65);
+                break;
+            case 4: // Humanoides
+                pvReal = Math.round(((float)pvMaximo / 100) * 65);
+                break;
+            case 5: //Monstros
+                pvReal = Math.round(((float)pvMaximo / 100) * 80);
+                break;
+            case 6: //Mortos-Vivos
+                pvReal = Math.round(((float)pvMaximo / 100) * 65);
+                break;
+            default:
+                pvReal = 1;
+        }
+        return pvReal;
+        /*Usar o pvMaximo deixaria a criatura muito forte, para fins de balalançeamento
+        usamos apenas parte do pvMaximo, para cada tipo de criatura há uma 
+        porcentagem que é mais balanceada
+        */
     }
     
+    private int calculoNivel(){
+        int nivel;
+        switch (this.getTipo()){
+            case 1: //Animais
+                nivel = getPv() / (4 + getModCon());
+                break;
+            case 2: //Constructos
+                nivel = getPv() / (5 + getModCon());
+                break;
+            case 3: //Espíritos
+                nivel = getPv() / (4 + getModCon());
+                break;
+            case 4: // Humanoides
+                nivel = getPv() / (2 + getModCon());
+                break;
+            case 5: //Monstros
+                nivel = getPv() / (10 + getModCon());
+                break;
+            case 6: //Mortos-Vivos
+                nivel = getPv() / (4 + getModCon());
+                break;
+            default:
+                nivel = 1;
+        }
+        return nivel;
+    }
+    
+    public String calcularPericias(int atributo){
+        String bonus;
+        bonus = "Não treinada: " + ( (getNivel() / 2) + atributo );
+        bonus += "\nTreinada: ";
+        if (getNivel() < 7)         bonus += ( (getNivel() / 2) + atributo + 2);
+        else if (getNivel() < 15)   bonus += ( (getNivel() / 2) + atributo + 4);
+        else                        bonus += ( (getNivel() / 2) + atributo + 6);
+        return bonus;
+    }
+            
+    @Override
+    public String toString(){
+        String msg = "";
+        msg =       "+---------------------------+\n"
+                +   "+Nível.......:            " + getNivel() + "+\n"
+                +   "+PV:" + getPv() + " ---------------- " + "PM:" + getPm() + "+\n"
+                +   "+Constituição: " + getCon() + " --- Mod: " + getModCon() + "+\n"
+                +   "+Força.......: " + getForca()+ " --- Mod: " + getModForca() + "+\n"
+                +   "+Destreza....: " + getDes() + " --- Mod: " + getModDes() + "+\n"
+                +   "+Inteligência: " + getIntel() + " --- Mod: " + getModIntel() + "+\n"
+                +   "+Sabedoria...: " + getSab() + " --- Mod: " + getModSab() + "+\n"
+                +   "+Carisma.....: " + getCar() + " --- Mod: " + getModCar() + "+\n"
+                +   "+---------------------------+\n"
+                ;
+        return msg;
+    }
+    
+    /*
+    public static void main(String[] args) {
+        Criaturas c = new Criaturas(10, 16, 15, 10, 8, 5, 1, "12d8", 42);
+        System.out.println(c);
+    }
+    */
 }
